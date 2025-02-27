@@ -23,7 +23,7 @@ describe('WebSocket Server (e2e)', () => {
   });
 
   it('✅ WebSocket 연결 테스트', (done) => {
-    socket = io('http://localhost:4000');
+    socket = io('http://localhost:4000', { auth: { userId: 1 } });
 
     socket.on('connect', () => {
       expect(socket.connected).toBe(true);
@@ -36,7 +36,7 @@ describe('WebSocket Server (e2e)', () => {
   });
 
   it('✅ 채팅방 참가 테스트', (done) => {
-    socket.emit('join', { roomId: 123 });
+    socket.emit('join', { roomId: 3 });
 
     socket.on('room', (data) => {
       expect(data).toHaveProperty('room');
@@ -49,12 +49,15 @@ describe('WebSocket Server (e2e)', () => {
   });
 
   it('✅ 메시지 전송 테스트', (done) => {
-    socket.emit('message', { userId: 'user1', roomId: 123, message: 'Hello!' });
+    socket.emit('message', {
+      roomId: 3,
+      message: 'e2e 테스트중!',
+    });
 
     socket.on('message', (data) => {
-      expect(data.chat).toHaveProperty('userId', 'user1');
-      expect(data.chat).toHaveProperty('roomId', 123);
-      expect(data.chat).toHaveProperty('message', 'Hello!');
+      expect(data.chat).toHaveProperty('senderId', 1);
+      expect(data.chat).toHaveProperty('roomId', 3);
+      expect(data.chat).toHaveProperty('content', 'e2e 테스트중!');
       done();
     });
 

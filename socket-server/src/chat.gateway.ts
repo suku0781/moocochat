@@ -9,6 +9,8 @@ import { Socket, Server } from 'socket.io';
 import { ChatJoinSocketDto, ChatMessageSocketDto } from './dto';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
+import { RedisIoAdapter } from './redis.adapter';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 @WebSocketGateway({
   transport: ['websocket'],
@@ -17,15 +19,24 @@ import { lastValueFrom } from 'rxjs';
     origin: '*',
   },
 })
-export class ChatGateway {
-  constructor(private readonly httpService: HttpService) {}
+@Injectable()
+export class ChatGateway implements OnModuleInit {
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly redisIoAdapter: RedisIoAdapter, // RedisIoAdapter 추가
+  ) {}
+
+  @WebSocketServer()
+  server: Server;
+
+  // 서버가 실행될 때 Redis Adapter 연결
+  async onModuleInit() {
+    this.redisIoAdapter.connectToRedis(this.server);
+  }
 
   private socketRoomName(roomId: number) {
     return `room:${roomId}`;
   }
-
-  @WebSocketServer()
-  server: Server;
 
   // WebSocket 연결 시 userId 저장
   async handleConnection(@ConnectedSocket() socket: Socket) {
@@ -39,7 +50,7 @@ export class ChatGateway {
     socket.data.userId = userId;
     socket.emit('authenticated', { userId });
 
-    console.log(`사용자 ${userId} 연결 완료`);
+    console.log(`사용자 ${userId} WebSocket 연결 완료`);
   }
 
   @SubscribeMessage('join')
@@ -61,7 +72,7 @@ export class ChatGateway {
         room: chatRoom,
       });
     } catch (e) {
-      console.error('Error joining room:', e);
+      console.error('채팅방 참가 중 오류 발생:', e);
     }
   }
 
@@ -82,18 +93,15 @@ export class ChatGateway {
         }),
       );
       const chatModel = response.data;
-      console.log(chatModel);
 
-      // const userResponse = await lastValueFrom(
-      //   this.httpService.get(`http://localhost:3000/user?userId=${userId}`),
-      // );
-      // chatModel.sender = userResponse.data;
+      console.log('📢 채팅 메시지 전송:', chatModel);
 
+      // Redis를 통해 다른 서버에서도 동일한 메시지 브로드캐스트
       this.server.to(this.socketRoomName(body.roomId)).emit('message', {
         chat: chatModel,
       });
     } catch (e) {
-      console.log(e);
+      console.error('메시지 전송 중 오류 발생:', e);
     }
   }
 }

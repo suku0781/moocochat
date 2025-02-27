@@ -1,19 +1,50 @@
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
 import { Server } from 'socket.io';
-import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class RedisIoAdapter extends IoAdapter {
-  async connectToRedis(server: Server) {
-    const pubClient = new Redis({ host: 'localhost', port: 6379 });
-    const subClient = pubClient.duplicate();
+  constructor(private readonly configService: ConfigService) {
+    super();
+  }
 
-    const socketServer = server as any;
-    if (!socketServer.of) {
-      console.error('server is not a valid Socket.IO server instance!');
-      return;
+  async connectToRedis(server: Server) {
+    const redisUrl = this.configService.get<string>('REDIS_HOST');
+    const redisPassword = this.configService.get<string>('REDIS_PW');
+    console.log('url : ' + redisUrl);
+    console.log('pw : ' + redisPassword);
+
+    if (!redisUrl) {
+      throw new Error(
+        'Redis 설정이 올바르지 않습니다! .env 파일을 확인하세요.',
+      );
     }
 
-    socketServer.adapter(createAdapter(pubClient, subClient));
+    try {
+      const pubClient = createClient({
+        url: redisUrl,
+        password: redisPassword || undefined,
+      });
+
+      const subClient = pubClient.duplicate();
+
+      await pubClient.connect();
+      await subClient.connect();
+
+      console.log('Redis Adapter 연결 성공!');
+
+      const socketServer = server as any;
+      if (!socketServer.of) {
+        console.error('서버가 올바른 Socket.IO 인스턴스가 아닙니다!');
+        return;
+      }
+
+      socketServer.adapter(createAdapter(pubClient, subClient));
+    } catch (error) {
+      console.error('Redis Adapter 연결 실패:', error);
+    }
   }
 }

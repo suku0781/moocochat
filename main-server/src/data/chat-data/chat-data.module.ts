@@ -25,6 +25,7 @@ export const CHAT_DATA_SOURCE_NAME = 'chat_data_source_name';
           logging: false,
           namingStrategy: new SnakeNamingStrategy(),
           entities: [ChatEntity, ChatLikeEntity],
+          ssl: false,
         };
       },
     }),

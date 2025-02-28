@@ -32,7 +32,7 @@ export const CORE_DATA_SOURCE_NAME = 'core_data_source_name';
           synchronize: true,
           logging: false,
           namingStrategy: new SnakeNamingStrategy(),
-          ssl: { rejectUnauthorized: false },
+          ssl: false,
           entities: [
             UserEntity,
             ChatJoinEntity,

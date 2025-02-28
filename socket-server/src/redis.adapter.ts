@@ -37,10 +37,6 @@ export class RedisIoAdapter extends IoAdapter {
       console.log('Redis Adapter 연결 성공!');
 
       const socketServer = server as any;
-      if (!socketServer.of) {
-        console.error('서버가 올바른 Socket.IO 인스턴스가 아닙니다!');
-        return;
-      }
 
       socketServer.adapter(createAdapter(pubClient, subClient));
     } catch (error) {
